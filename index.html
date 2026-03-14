@@ -13,6 +13,18 @@
       <p>Create printable labels with parametric SVG diagrams for screws, nuts, and washers.</p>
 
       <form id="labelForm">
+        <div class="label-manager">
+          <div class="form-group">
+            <label for="labelPicker">Active Label</label>
+            <select id="labelPicker" name="labelPicker"></select>
+          </div>
+          <div class="mini-actions">
+            <button type="button" id="addLabelBtn">+ Add</button>
+            <button type="button" id="duplicateLabelBtn">Duplicate</button>
+            <button type="button" id="removeLabelBtn">Remove</button>
+          </div>
+        </div>
+
         <div class="row">
           <div class="form-group">
             <label for="standard">Standard</label>
@@ -139,25 +151,35 @@
           </div>
         </div>
 
+        <div class="row">
+          <div class="form-group">
+            <label for="averyTemplate">Avery Template</label>
+            <select id="averyTemplate" name="averyTemplate">
+              <option value="single" selected>Single Label (4in × 2.25in)</option>
+              <option value="5160">Avery 5160 (30 labels)</option>
+              <option value="5163">Avery 5163 (10 labels)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="labelQuantity">Qty On Sheet</label>
+            <input id="labelQuantity" name="labelQuantity" type="number" min="1" value="1">
+          </div>
+        </div>
+
         <div class="actions">
           <button type="button" id="printBtn" class="primary">Print Label</button>
           <button type="reset">Reset</button>
+        </div>
+
+        <div class="actions">
+          <button type="button" id="exportJsonBtn">Export JSON</button>
         </div>
       </form>
     </aside>
 
     <main class="preview-area">
-      <section class="label" id="labelPreview">
-        <div class="label-main">
-          <div>
-            <div id="previewTitle" class="label-title">M4 × 12mm</div>
-            <div id="previewSubtitle" class="label-subtitle">Pan Head • Phillips • Pointed End</div>
-            <div id="previewMeta" class="label-meta">0.7mm pitch • ⌀4.0mm</div>
-          </div>
-          <div id="previewLocation" class="label-location is-hidden"></div>
-        </div>
-        <div id="labelVisual" class="label-visual" aria-hidden="true"></div>
-      </section>
+      <div id="sheetPreview" class="sheet-preview"></div>
+      <p id="sheetNotice" class="sheet-notice"></p>
     </main>
   </div>
 

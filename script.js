@@ -3,20 +3,62 @@ import { renderScrewSVG } from './renderers/screwRenderer.js';
 import { renderNutSVG } from './renderers/nutRenderer.js';
 import { renderWasherSVG } from './renderers/washerRenderer.js';
 
+const AVERY_TEMPLATES = {
+  single: {
+    id: 'single',
+    label: 'Single Label',
+    columns: 1,
+    rows: 1,
+    labelWidth: 4,
+    labelHeight: 2.25,
+    colGap: 0,
+    rowGap: 0
+  },
+  '5160': {
+    id: '5160',
+    label: 'Avery 5160',
+    columns: 3,
+    rows: 10,
+    labelWidth: 2.625,
+    labelHeight: 1,
+    colGap: 0.125,
+    rowGap: 0
+  },
+  '5163': {
+    id: '5163',
+    label: 'Avery 5163',
+    columns: 2,
+    rows: 5,
+    labelWidth: 4,
+    labelHeight: 2,
+    colGap: 0.125,
+    rowGap: 0
+  }
+};
+
 const form = document.getElementById('labelForm');
-const titleEl = document.getElementById('previewTitle');
-const subtitleEl = document.getElementById('previewSubtitle');
-const metaEl = document.getElementById('previewMeta');
-const locationEl = document.getElementById('previewLocation');
-const labelVisual = document.getElementById('labelVisual');
 const printBtn = document.getElementById('printBtn');
+const exportJsonBtn = document.getElementById('exportJsonBtn');
+const addLabelBtn = document.getElementById('addLabelBtn');
+const duplicateLabelBtn = document.getElementById('duplicateLabelBtn');
+const removeLabelBtn = document.getElementById('removeLabelBtn');
+const labelPicker = document.getElementById('labelPicker');
 const conditionalGroups = Array.from(document.querySelectorAll('.config-group[data-types]'));
+
 const standardSelect = document.getElementById('standard');
 const sizeSelect = document.getElementById('size');
+const templateSelect = document.getElementById('averyTemplate');
+const labelQuantityInput = document.getElementById('labelQuantity');
 
 const sizeLabel = document.getElementById('sizeLabel');
 const lengthLabel = document.getElementById('lengthLabel');
 const pitchLabel = document.getElementById('pitchLabel');
+
+const sheetPreview = document.getElementById('sheetPreview');
+const sheetNotice = document.getElementById('sheetNotice');
+
+let labelConfigs = [];
+let activeLabelIndex = 0;
 
 const HEAD_LABELS = {
   pan: 'Pan Head',
@@ -47,6 +89,15 @@ function mmToInches(mmValue) {
 
 function inchesToMm(inchValue) {
   return inchValue * 25.4;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function getValue(id) {
@@ -126,11 +177,83 @@ function getCurrentPart() {
     location: getValue('location'),
     vendor: getValue('vendor'),
     sku: getValue('sku'),
+    quantity: Math.max(1, Number(getValue('labelQuantity')) || 1),
     widthAcrossFlats: Number(getValue('nutWidthAcrossFlats')) || nutDefaults.widthAcrossFlats,
     nutThickness: Number(getValue('nutThickness')) || nutDefaults.thickness,
     innerDiameter: Number(getValue('washerID')) || washerDefaults.innerDiameter,
     outerDiameter: Number(getValue('washerOD')) || washerDefaults.outerDiameter,
     washerThickness: Number(getValue('washerThickness')) || washerDefaults.thickness
+  };
+}
+
+function applyPartToForm(part) {
+  standardSelect.value = part.standard || 'metric';
+  populateSizeOptions();
+  updateStandardLabels();
+
+  const setField = (id, value) => {
+    const element = document.getElementById(id);
+    if (element && value !== undefined && value !== null) {
+      element.value = value;
+    }
+  };
+
+  setField('type', part.type || 'screw');
+  setField('size', part.size || getDefaultSizeForStandard(standardSelect.value));
+  setField('length', part.lengthDisplay || 12);
+  setField('pitch', part.standard === 'sae' ? (part.threadValue || 20) : (part.pitch || 0.7));
+  setField('head', part.head || 'pan');
+  setField('drive', part.drive || 'phillips');
+  setField('endType', part.endType || 'pointed');
+  setField('material', part.material || '');
+  setField('finish', part.finish || '');
+  setField('location', part.location || '');
+  setField('vendor', part.vendor || '');
+  setField('sku', part.sku || '');
+  setField('labelQuantity', part.quantity || 1);
+  setField('nutWidthAcrossFlats', part.widthAcrossFlats);
+  setField('nutThickness', part.nutThickness);
+  setField('washerID', part.innerDiameter);
+  setField('washerOD', part.outerDiameter);
+  setField('washerThickness', part.washerThickness);
+
+  updateFormOptions();
+}
+
+function storeActiveLabel() {
+  if (!labelConfigs[activeLabelIndex]) {
+    return;
+  }
+
+  labelConfigs[activeLabelIndex] = getCurrentPart();
+}
+
+function refreshLabelPicker() {
+  const previous = activeLabelIndex;
+  labelPicker.innerHTML = labelConfigs
+    .map((label, index) => {
+      const name = `${index + 1}: ${renderTitle(label)} ×${label.quantity}`;
+      return `<option value="${index}">${escapeHtml(name)}</option>`;
+    })
+    .join('');
+
+  activeLabelIndex = Math.min(previous, labelConfigs.length - 1);
+  labelPicker.value = String(activeLabelIndex);
+
+  removeLabelBtn.disabled = labelConfigs.length <= 1;
+}
+
+function getSheetSettings() {
+  const templateId = templateSelect.value || 'single';
+  const template = AVERY_TEMPLATES[templateId] || AVERY_TEMPLATES.single;
+  const capacity = template.columns * template.rows;
+  const totalLabelCount = labelConfigs.reduce((sum, label) => sum + Math.max(1, Number(label.quantity) || 1), 0);
+
+  return {
+    template,
+    totalLabelCount,
+    capacity,
+    renderCount: Math.min(totalLabelCount, capacity)
   };
 }
 
@@ -192,7 +315,6 @@ function updateFormOptions() {
   });
 }
 
-// Main SVG dispatch function requested in spec.
 function renderFastenerSVG(part) {
   switch (part.type) {
     case 'screw':
@@ -226,8 +348,7 @@ function renderSubtitle(part) {
   return part.type === 'nut' ? 'Hex Nut' : 'Flat Washer';
 }
 
-function updatePreview() {
-  const part = getCurrentPart();
+function buildMetaLines(part) {
   let detailLine = `${formatNumber(part.pitch, 3)}mm pitch • ⌀${part.diameter.toFixed(1)}mm`;
 
   if (part.standard === 'sae') {
@@ -264,27 +385,125 @@ function updatePreview() {
     metaLines.push(`SKU: ${part.sku}`);
   }
 
-  titleEl.textContent = renderTitle(part);
-  subtitleEl.textContent = renderSubtitle(part);
-  metaEl.innerHTML = metaLines.join('<br>');
-
-  if (part.location) {
-    locationEl.textContent = part.location;
-    locationEl.classList.remove('is-hidden');
-  } else {
-    locationEl.textContent = '';
-    locationEl.classList.add('is-hidden');
-  }
-
-  labelVisual.innerHTML = renderFastenerSVG(part);
+  return metaLines;
 }
 
-form.addEventListener('input', () => {
+function renderLabelMarkup(part, compact = false) {
+  const title = escapeHtml(renderTitle(part));
+  const subtitle = escapeHtml(renderSubtitle(part));
+  const metaLines = buildMetaLines(part);
+  if (compact && part.location) {
+    metaLines.push(`Loc: ${part.location}`);
+  }
+  const meta = metaLines.map((line) => escapeHtml(line)).join('<br>');
+  const svg = renderFastenerSVG(part);
+  const locationMarkup = !compact && part.location
+    ? `<div class="label-location">${escapeHtml(part.location)}</div>`
+    : '';
+
+  return `
+    <section class="label${compact ? ' label--compact' : ''}">
+      <div class="label-main">
+        <div>
+          <div class="label-title">${title}</div>
+          <div class="label-subtitle">${subtitle}</div>
+          <div class="label-meta">${meta}</div>
+        </div>
+        ${locationMarkup}
+      </div>
+      <div class="label-visual" aria-hidden="true">${svg}</div>
+    </section>
+  `;
+}
+
+function updateSheetNotice(copies, capacity, renderCount, templateLabel) {
+  if (copies > capacity) {
+    sheetNotice.textContent = `${templateLabel} holds ${capacity} labels per sheet. Showing first ${renderCount} mixed labels.`;
+    return;
+  }
+
+  sheetNotice.textContent = `${templateLabel} preview • ${renderCount} label${renderCount === 1 ? '' : 's'} from ${labelConfigs.length} config${labelConfigs.length === 1 ? '' : 's'}`;
+}
+
+function updatePreview() {
+  storeActiveLabel();
+  const { template, totalLabelCount, capacity, renderCount } = getSheetSettings();
+  const compact = template.labelHeight <= 1.2;
+
+  const expandedLabels = [];
+  for (const label of labelConfigs) {
+    const quantity = Math.max(1, Number(label.quantity) || 1);
+    for (let index = 0; index < quantity; index += 1) {
+      expandedLabels.push(label);
+    }
+  }
+
+  const labelsToRender = expandedLabels.slice(0, renderCount);
+
+  const labelsMarkup = labelsToRender.map((label) => renderLabelMarkup(label, compact)).join('');
+
+  sheetPreview.innerHTML = `
+    <div
+      class="label-sheet-grid"
+      style="--cols:${template.columns}; --label-width:${template.labelWidth}in; --label-height:${template.labelHeight}in; --col-gap:${template.colGap}in; --row-gap:${template.rowGap}in;"
+      data-template="${template.id}"
+    >
+      ${labelsMarkup}
+    </div>
+  `;
+
+  refreshLabelPicker();
+  updateSheetNotice(totalLabelCount, capacity, renderCount, template.label);
+}
+
+function downloadTextFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportCurrentConfig() {
+  storeActiveLabel();
+  const sheet = getSheetSettings();
+  const payload = {
+    activeLabelIndex,
+    labels: labelConfigs,
+    sheet: {
+      template: sheet.template.id,
+      totalLabelCount: sheet.totalLabelCount,
+      capacity: sheet.capacity
+    },
+    exportedAt: new Date().toISOString()
+  };
+
+  const part = labelConfigs[activeLabelIndex] || getCurrentPart();
+  const safeName = `${part.standard}-${part.type}-${part.size}-label-config`.replace(/[^a-z0-9\-_.]/gi, '_').toLowerCase();
+  downloadTextFile(`${safeName}.json`, `${JSON.stringify(payload, null, 2)}\n`, 'application/json');
+}
+
+form.addEventListener('input', (event) => {
+  if (event.target.id === 'labelPicker') {
+    return;
+  }
+
+  storeActiveLabel();
   updateFormOptions();
   updatePreview();
 });
 
 form.addEventListener('change', (event) => {
+  if (event.target.id === 'labelPicker') {
+    return;
+  }
+
+  storeActiveLabel();
+
   if (event.target.id === 'standard') {
     populateSizeOptions();
     updateStandardLabels();
@@ -299,20 +518,64 @@ form.addEventListener('change', (event) => {
   updatePreview();
 });
 
+labelPicker.addEventListener('change', () => {
+  storeActiveLabel();
+  activeLabelIndex = Number(labelPicker.value) || 0;
+  const nextLabel = labelConfigs[activeLabelIndex];
+  if (nextLabel) {
+    applyPartToForm(nextLabel);
+  }
+  updatePreview();
+});
+
+addLabelBtn.addEventListener('click', () => {
+  storeActiveLabel();
+  const newLabel = { ...labelConfigs[activeLabelIndex], quantity: 1 };
+  labelConfigs.push(newLabel);
+  activeLabelIndex = labelConfigs.length - 1;
+  applyPartToForm(newLabel);
+  updatePreview();
+});
+
+duplicateLabelBtn.addEventListener('click', () => {
+  storeActiveLabel();
+  const copy = { ...labelConfigs[activeLabelIndex] };
+  labelConfigs.push(copy);
+  activeLabelIndex = labelConfigs.length - 1;
+  applyPartToForm(copy);
+  updatePreview();
+});
+
+removeLabelBtn.addEventListener('click', () => {
+  if (labelConfigs.length <= 1) {
+    return;
+  }
+
+  labelConfigs.splice(activeLabelIndex, 1);
+  activeLabelIndex = Math.max(0, activeLabelIndex - 1);
+  applyPartToForm(labelConfigs[activeLabelIndex]);
+  updatePreview();
+});
+
 form.addEventListener('reset', () => {
   setTimeout(() => {
     populateSizeOptions();
     updateStandardLabels();
     syncTypeSpecificDefaults();
     updateFormOptions();
+    labelConfigs = [getCurrentPart()];
+    activeLabelIndex = 0;
     updatePreview();
   }, 0);
 });
 
 printBtn.addEventListener('click', () => window.print());
+exportJsonBtn.addEventListener('click', exportCurrentConfig);
 
 populateSizeOptions();
 updateStandardLabels();
 syncTypeSpecificDefaults();
 updateFormOptions();
+labelConfigs = [getCurrentPart()];
+activeLabelIndex = 0;
 updatePreview();
