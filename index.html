@@ -4,13 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hardware Label Generator</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
     <aside class="panel no-print">
       <h1>Hardware Label Generator</h1>
-      <p>Create printable labels with parametric SVG diagrams for screws, nuts, and washers.</p>
+      <p>© 2026 <a href="https://jacobkaiserman.com" target="_blank" style="color: #4a4a4a;">Jacob Kaiserman</a></p>
+      <p>Create printable labels for organizing hardware.</p>
 
       <form id="labelForm">
         <div class="label-manager">
@@ -68,8 +70,16 @@
             <select id="head" name="head">
               <option value="pan" selected>Pan</option>
               <option value="socketCap">Socket Cap</option>
+              <option value="fillister">Fillister</option>
               <option value="flat">Flat</option>
+              <option value="flat82">82° Flat</option>
               <option value="hex">Hex</option>
+              <option value="hexWasher">Hex Washer</option>
+              <option value="oval">Oval</option>
+              <option value="round">Round</option>
+              <option value="roundWasher">Round Washer</option>
+              <option value="trim">Trim</option>
+              <option value="wafer">Wafer</option>
             </select>
           </div>
           <div class="form-group">
@@ -78,6 +88,7 @@
               <option value="phillips" selected>Phillips</option>
               <option value="hex">Hex</option>
               <option value="torx">Torx</option>
+              <option value="securityTorx">Security Torx</option>
               <option value="slotted">Slotted</option>
             </select>
           </div>
@@ -111,6 +122,13 @@
             <label for="nutThickness">Thickness (mm)</label>
             <input id="nutThickness" name="nutThickness" type="number" step="0.1" value="3.2">
           </div>
+        </div>
+
+        <div class="form-group config-group" data-types="nut">
+          <label class="check-label" for="nutLock">
+            <input id="nutLock" name="nutLock" type="checkbox">
+            Lock Nut
+          </label>
         </div>
 
         <div class="row config-group" data-types="washer">

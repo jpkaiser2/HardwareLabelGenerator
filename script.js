@@ -63,14 +63,23 @@ let activeLabelIndex = 0;
 const HEAD_LABELS = {
   pan: 'Pan Head',
   socketCap: 'Socket Cap',
+  fillister: 'Fillister Head',
   flat: 'Flat Head',
-  hex: 'Hex Head'
+  flat82: '82° Flat Head',
+  hex: 'Hex Head',
+  hexWasher: 'Hex Washer Head',
+  oval: 'Oval Head',
+  round: 'Round Head',
+  roundWasher: 'Round Washer Head',
+  trim: 'Trim Head',
+  wafer: 'Wafer Head'
 };
 
 const DRIVE_LABELS = {
   phillips: 'Phillips',
   hex: 'Hex',
   torx: 'Torx',
+  securityTorx: 'Security Torx',
   slotted: 'Slotted'
 };
 
@@ -102,6 +111,10 @@ function escapeHtml(text) {
 
 function getValue(id) {
   return document.getElementById(id).value.trim();
+}
+
+function getChecked(id) {
+  return Boolean(document.getElementById(id)?.checked);
 }
 
 function getDataForCurrentStandard() {
@@ -178,6 +191,7 @@ function getCurrentPart() {
     vendor: getValue('vendor'),
     sku: getValue('sku'),
     quantity: Math.max(1, Number(getValue('labelQuantity')) || 1),
+    isLockNut: getChecked('nutLock'),
     widthAcrossFlats: Number(getValue('nutWidthAcrossFlats')) || nutDefaults.widthAcrossFlats,
     nutThickness: Number(getValue('nutThickness')) || nutDefaults.thickness,
     innerDiameter: Number(getValue('washerID')) || washerDefaults.innerDiameter,
@@ -211,6 +225,10 @@ function applyPartToForm(part) {
   setField('vendor', part.vendor || '');
   setField('sku', part.sku || '');
   setField('labelQuantity', part.quantity || 1);
+  const nutLockInput = document.getElementById('nutLock');
+  if (nutLockInput) {
+    nutLockInput.checked = Boolean(part.isLockNut);
+  }
   setField('nutWidthAcrossFlats', part.widthAcrossFlats);
   setField('nutThickness', part.nutThickness);
   setField('washerID', part.innerDiameter);
@@ -248,12 +266,13 @@ function getSheetSettings() {
   const template = AVERY_TEMPLATES[templateId] || AVERY_TEMPLATES.single;
   const capacity = template.columns * template.rows;
   const totalLabelCount = labelConfigs.reduce((sum, label) => sum + Math.max(1, Number(label.quantity) || 1), 0);
+  const pageCount = Math.max(1, Math.ceil(totalLabelCount / capacity));
 
   return {
     template,
     totalLabelCount,
     capacity,
-    renderCount: Math.min(totalLabelCount, capacity)
+    pageCount
   };
 }
 
@@ -318,13 +337,26 @@ function updateFormOptions() {
 function renderFastenerSVG(part) {
   switch (part.type) {
     case 'screw':
-      return renderScrewSVG(part);
+      return renderScrewSVG(part, 'side');
     case 'nut':
-      return renderNutSVG(part);
+      return renderNutSVG(part, 'top');
     case 'washer':
-      return renderWasherSVG(part);
+      return renderWasherSVG(part, 'top');
     default:
-      return renderScrewSVG(part);
+      return renderScrewSVG(part, 'side');
+  }
+}
+
+function renderFastenerViews(part) {
+  switch (part.type) {
+    case 'screw':
+      return [renderScrewSVG(part, 'side'), renderScrewSVG(part, 'top')];
+    case 'nut':
+      return [renderNutSVG(part, 'top')];
+    case 'washer':
+      return [renderWasherSVG(part, 'top')];
+    default:
+      return [renderScrewSVG(part, 'side'), renderScrewSVG(part, 'top')];
   }
 }
 
@@ -345,7 +377,11 @@ function renderSubtitle(part) {
     return `${head} • ${drive} • ${endType}`;
   }
 
-  return part.type === 'nut' ? 'Hex Nut' : 'Flat Washer';
+  if (part.type === 'nut') {
+    return part.isLockNut ? 'Hex Lock Nut' : 'Hex Nut';
+  }
+
+  return 'Flat Washer';
 }
 
 function buildMetaLines(part) {
@@ -370,6 +406,10 @@ function buildMetaLines(part) {
   }
 
   const metaLines = [detailLine];
+
+  if (part.type === 'nut' && part.isLockNut) {
+    metaLines.push('Locking insert');
+  }
 
   if (part.material || part.finish) {
     metaLines.push(part.material && part.finish
@@ -396,7 +436,10 @@ function renderLabelMarkup(part, compact = false) {
     metaLines.push(`Loc: ${part.location}`);
   }
   const meta = metaLines.map((line) => escapeHtml(line)).join('<br>');
-  const svg = renderFastenerSVG(part);
+  const views = renderFastenerViews(part);
+  const viewsMarkup = views
+    .map((viewSvg) => `<div class="label-view"><div class="label-view-svg">${viewSvg}</div></div>`)
+    .join('');
   const locationMarkup = !compact && part.location
     ? `<div class="label-location">${escapeHtml(part.location)}</div>`
     : '';
@@ -411,24 +454,23 @@ function renderLabelMarkup(part, compact = false) {
         </div>
         ${locationMarkup}
       </div>
-      <div class="label-visual" aria-hidden="true">${svg}</div>
+      <div class="label-visuals${views.length === 1 ? ' label-visuals--single' : ''}" aria-hidden="true">
+        ${viewsMarkup}
+      </div>
     </section>
   `;
 }
 
-function updateSheetNotice(copies, capacity, renderCount, templateLabel) {
-  if (copies > capacity) {
-    sheetNotice.textContent = `${templateLabel} holds ${capacity} labels per sheet. Showing first ${renderCount} mixed labels.`;
-    return;
-  }
-
-  sheetNotice.textContent = `${templateLabel} preview • ${renderCount} label${renderCount === 1 ? '' : 's'} from ${labelConfigs.length} config${labelConfigs.length === 1 ? '' : 's'}`;
+function updateSheetNotice(totalCount, capacity, pageCount, templateLabel) {
+  sheetNotice.textContent = `${templateLabel} preview • ${totalCount} label${totalCount === 1 ? '' : 's'} across ${pageCount} page${pageCount === 1 ? '' : 's'} (${capacity} per page)`;
 }
 
 function updatePreview() {
   storeActiveLabel();
-  const { template, totalLabelCount, capacity, renderCount } = getSheetSettings();
+  const { template, totalLabelCount, capacity, pageCount } = getSheetSettings();
   const compact = template.labelHeight <= 1.2;
+
+  printBtn.textContent = totalLabelCount > 1 ? 'Print Labels' : 'Print Label';
 
   const expandedLabels = [];
   for (const label of labelConfigs) {
@@ -438,22 +480,30 @@ function updatePreview() {
     }
   }
 
-  const labelsToRender = expandedLabels.slice(0, renderCount);
+  const pageMarkup = Array.from({ length: pageCount }, (_, pageIndex) => {
+    const start = pageIndex * capacity;
+    const end = start + capacity;
+    const labelsForPage = expandedLabels.slice(start, end);
+    const labelsMarkup = labelsForPage.map((label) => renderLabelMarkup(label, compact)).join('');
 
-  const labelsMarkup = labelsToRender.map((label) => renderLabelMarkup(label, compact)).join('');
+    return `
+      <div class="sheet-page">
+        <div class="sheet-page-title no-print">Page ${pageIndex + 1} of ${pageCount}</div>
+        <div
+          class="label-sheet-grid"
+          style="--cols:${template.columns}; --label-width:${template.labelWidth}in; --label-height:${template.labelHeight}in; --col-gap:${template.colGap}in; --row-gap:${template.rowGap}in;"
+          data-template="${template.id}"
+        >
+          ${labelsMarkup}
+        </div>
+      </div>
+    `;
+  }).join('');
 
-  sheetPreview.innerHTML = `
-    <div
-      class="label-sheet-grid"
-      style="--cols:${template.columns}; --label-width:${template.labelWidth}in; --label-height:${template.labelHeight}in; --col-gap:${template.colGap}in; --row-gap:${template.rowGap}in;"
-      data-template="${template.id}"
-    >
-      ${labelsMarkup}
-    </div>
-  `;
+  sheetPreview.innerHTML = pageMarkup;
 
   refreshLabelPicker();
-  updateSheetNotice(totalLabelCount, capacity, renderCount, template.label);
+  updateSheetNotice(totalLabelCount, capacity, pageCount, template.label);
 }
 
 function downloadTextFile(filename, content, mimeType) {
@@ -477,7 +527,8 @@ function exportCurrentConfig() {
     sheet: {
       template: sheet.template.id,
       totalLabelCount: sheet.totalLabelCount,
-      capacity: sheet.capacity
+      capacity: sheet.capacity,
+      pageCount: sheet.pageCount
     },
     exportedAt: new Date().toISOString()
   };

@@ -18,15 +18,17 @@ body {
 }
 
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 350px 1fr;
+  overflow: hidden;
 }
 
 .panel {
   padding: 20px;
   background: var(--panel);
   border-right: 1px solid var(--border);
+  overflow-y: auto;
 }
 
 h1 {
@@ -93,6 +95,19 @@ button {
   color: #111;
 }
 
+.check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.check-label input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+}
+
 .actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -109,10 +124,13 @@ button {
 }
 
 .preview-area {
+  height: 100vh;
   padding: 30px;
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-y: auto;
 }
 
 .label {
@@ -122,7 +140,7 @@ button {
   background: #fff;
   border: 1px solid #888;
   display: grid;
-  grid-template-columns: 1fr 118px;
+  grid-template-columns: 1fr 162px;
   gap: 10px;
   padding: 14px;
 }
@@ -158,21 +176,38 @@ button {
   font-weight: 700;
 }
 
-.label-visual {
+.label-visuals {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  border-left: 1px solid #bbb;
+  padding-left: 8px;
+  gap: 6px;
+}
+
+.label-visuals--single {
+  justify-content: center;
+}
+
+.label-view {
+  border: 1px solid #d3d3d3;
+  padding: 4px;
+}
+
+.label-view-svg {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-left: 1px solid #bbb;
-  padding-left: 8px;
 }
 
-.label-visual svg {
-  width: 96px;
-  height: 128px;
+.label-view-svg svg {
+  width: 122px;
+  height: 64px;
 }
 
 .label--compact {
-  grid-template-columns: 1fr 68px;
+  grid-template-columns: 1fr 78px;
   padding: 8px;
   gap: 6px;
 }
@@ -198,19 +233,40 @@ button {
   font-size: 0.52rem;
 }
 
-.label--compact .label-visual {
+.label--compact .label-visuals {
   padding-left: 4px;
+  gap: 3px;
 }
 
-.label--compact .label-visual svg {
-  width: 56px;
-  height: 72px;
+.label--compact .label-view {
+  padding: 2px;
+  border-color: #dfdfdf;
+}
+
+.label--compact .label-view-svg svg {
+  width: 58px;
+  height: 31px;
 }
 
 .sheet-preview {
   width: 100%;
   overflow: auto;
   padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.sheet-page {
+  width: fit-content;
+}
+
+.sheet-page-title {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 6px;
+  font-weight: 700;
 }
 
 .sheet-notice {
@@ -233,12 +289,20 @@ button {
 
 @media (max-width: 900px) {
   .app {
+    height: auto;
+    overflow: visible;
     grid-template-columns: 1fr;
   }
 
   .panel {
     border-right: 0;
     border-bottom: 1px solid var(--border);
+    overflow: visible;
+  }
+
+  .preview-area {
+    height: auto;
+    overflow: visible;
   }
 }
 
@@ -267,6 +331,21 @@ button {
 
   .sheet-notice {
     display: none;
+  }
+
+  .sheet-page {
+    margin: 0;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .sheet-page-title {
+    display: none !important;
+  }
+
+  .sheet-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 
   .label-sheet-grid {
