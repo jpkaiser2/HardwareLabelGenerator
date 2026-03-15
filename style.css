@@ -131,6 +131,9 @@ button {
   align-items: flex-start;
   justify-content: flex-start;
   overflow-y: auto;
+  background-color: #efefef;
+  background-image: radial-gradient(circle, #c9c9c9 1px, transparent 1px);
+  background-size: 16px 16px;
 }
 
 .label {

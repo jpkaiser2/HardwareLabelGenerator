@@ -220,9 +220,10 @@ export function renderScrewSVG(part, view = 'side') {
   const length = Number(part.length) || 12;
   const pitch = Number(part.pitch) || sizeData.coarsePitch;
   const endType = part.endType || 'pointed';
+  const isHeadless = Boolean(part.isHeadless);
 
   const centerX = 60;
-  const shaftTopY = 34;
+  const shaftTopY = isHeadless ? 18 : 34;
   const shaftWidth = clamp(diameter * 2.1, 7, 20);
   const shaftHeight = clamp(length * 4.4, 38, 98);
   const shaftBottomY = shaftTopY + shaftHeight;
@@ -231,7 +232,7 @@ export function renderScrewSVG(part, view = 'side') {
 
   const headHeightPx = clamp(headData.headHeight * 6, 10, 26);
   const headTopY = clamp(34 - headHeightPx, 8, 24);
-  const headMarkup = getHeadGeometry(part.head, centerX, headTopY, shaftWidth);
+  const headMarkup = isHeadless ? '' : getHeadGeometry(part.head, centerX, headTopY, shaftWidth);
 
   const pitchPx = clamp((pitch / sizeData.coarsePitch) * 8, 5, 11);
   let threadLines = '';
@@ -246,14 +247,16 @@ export function renderScrewSVG(part, view = 'side') {
 
   if (view === 'top') {
     const topCenterY = 80;
-    const headRadius = clamp((headData.headDiameter || diameter * 2.4) * 3.1, 16, 42);
+    const headRadius = isHeadless
+      ? clamp(diameter * 6.4, 11, 24)
+      : clamp((headData.headDiameter || diameter * 2.4) * 3.1, 16, 42);
 
     let outline = `<circle cx="${centerX}" cy="${topCenterY}" r="${headRadius}" fill="#fff" stroke="#111" stroke-width="2" />`;
-    if (part.head === 'trim') {
+    if (!isHeadless && part.head === 'trim') {
       outline = `<circle cx="${centerX}" cy="${topCenterY}" r="${headRadius * 0.72}" fill="#fff" stroke="#111" stroke-width="2" />`;
     }
 
-    if (part.head === 'hex' || part.head === 'hexWasher') {
+    if (!isHeadless && (part.head === 'hex' || part.head === 'hexWasher')) {
       if (part.head === 'hexWasher') {
         outline = `<circle cx="${centerX}" cy="${topCenterY}" r="${headRadius * 1.08}" fill="#fff" stroke="#111" stroke-width="2" />`;
       }
@@ -264,7 +267,7 @@ export function renderScrewSVG(part, view = 'side') {
       outline += `<polygon points="${points}" fill="#fff" stroke="#111" stroke-width="2" />`;
     }
 
-    const topDrive = (part.head === 'hex' || part.head === 'hexWasher')
+    const topDrive = (!isHeadless && (part.head === 'hex' || part.head === 'hexWasher'))
       ? ''
       : renderDriveSymbol(part.drive, centerX, topCenterY, clamp(headRadius * 1.05, 14, 30));
 
@@ -281,7 +284,7 @@ export function renderScrewSVG(part, view = 'side') {
     : `<polygon points="${centerX - shaftWidth / 2},${shaftBottomY} ${centerX + shaftWidth / 2},${shaftBottomY} ${centerX},${tipBottomY}" fill="#fff" stroke="#111" stroke-width="2" />`;
 
   return `
-    <svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${headLabel} ${driveLabel} ${endLabel} screw side view">
+    <svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${isHeadless ? `Headless ${endLabel}` : `${headLabel} ${driveLabel} ${endLabel}`} screw side view">
       ${headMarkup}
       <rect x="${centerX - shaftWidth / 2}" y="${shaftTopY}" width="${shaftWidth}" height="${shaftHeight}" fill="#fff" stroke="#111" stroke-width="2" />
       ${threadLines}

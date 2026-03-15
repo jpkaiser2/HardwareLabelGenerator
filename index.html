@@ -39,8 +39,10 @@
             <label for="type">Hardware Type</label>
             <select id="type" name="type">
               <option value="screw" selected>Screw</option>
+              <option value="setScrew">Set Screw</option>
               <option value="nut">Nut</option>
               <option value="washer">Washer</option>
+              <option value="bearing">Bearing</option>
             </select>
           </div>
         </div>
@@ -113,6 +115,46 @@
           </select>
         </div>
 
+        <div class="form-group config-group" data-types="screw">
+          <label class="check-label" for="screwHeadless">
+            <input id="screwHeadless" name="screwHeadless" type="checkbox">
+            Headless
+          </label>
+        </div>
+
+        <div class="row config-group" data-types="setScrew">
+          <div class="form-group">
+            <label for="setScrewDrive">Drive Type</label>
+            <select id="setScrewDrive" name="setScrewDrive">
+              <option value="hex" selected>Hex</option>
+              <option value="torx">Torx</option>
+              <option value="securityTorx">Security Torx</option>
+              <option value="slotted">Slotted</option>
+              <option value="phillips">Phillips</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="setScrewPoint">Point Style</label>
+            <select id="setScrewPoint" name="setScrewPoint">
+              <option value="cup" selected>Cup Point</option>
+              <option value="cone">Cone Point</option>
+              <option value="flat">Flat Point</option>
+              <option value="dog">Dog Point</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row config-group" data-types="setScrew">
+          <div class="form-group">
+            <label for="setScrewLength"><span id="setScrewLengthLabel">Length (mm)</span></label>
+            <input id="setScrewLength" name="setScrewLength" type="number" min="1" value="8">
+          </div>
+          <div class="form-group">
+            <label for="setScrewPitch"><span id="setScrewPitchLabel">Pitch (mm)</span></label>
+            <input id="setScrewPitch" name="setScrewPitch" type="number" step="0.05" value="0.7">
+          </div>
+        </div>
+
         <div class="row config-group" data-types="nut">
           <div class="form-group">
             <label for="nutWidthAcrossFlats">Width Across Flats (mm)</label>
@@ -145,6 +187,53 @@
         <div class="form-group config-group" data-types="washer">
           <label for="washerThickness">Thickness (mm)</label>
           <input id="washerThickness" name="washerThickness" type="number" step="0.1" value="0.8">
+        </div>
+
+        <div class="row config-group" data-types="bearing">
+          <div class="form-group">
+            <label for="bearingPreset">Bearing Preset</label>
+            <select id="bearingPreset" name="bearingPreset">
+              <option value="custom" selected>Custom</option>
+              <option value="608">608 (8 × 22 × 7)</option>
+              <option value="625">625 (5 × 16 × 5)</option>
+              <option value="626">626 (6 × 19 × 6)</option>
+              <option value="627">627 (7 × 22 × 7)</option>
+              <option value="6000">6000 (10 × 26 × 8)</option>
+              <option value="6001">6001 (12 × 28 × 8)</option>
+              <option value="6002">6002 (15 × 32 × 9)</option>
+              <option value="6003">6003 (17 × 35 × 10)</option>
+              <option value="6004">6004 (20 × 42 × 12)</option>
+              <option value="6200">6200 (10 × 30 × 9)</option>
+              <option value="6201">6201 (12 × 32 × 10)</option>
+              <option value="6202">6202 (15 × 35 × 11)</option>
+              <option value="6203">6203 (17 × 40 × 12)</option>
+              <option value="R188">R188 (1/4 × 1/2 × 3/16)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="bearingSeal">Seal Type</label>
+            <select id="bearingSeal" name="bearingSeal">
+              <option value="open" selected>Open</option>
+              <option value="shielded">Shielded (ZZ)</option>
+              <option value="sealed">Sealed (2RS)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row config-group" data-types="bearing">
+          <div class="form-group">
+            <label for="bearingID">Inner Diameter / ID (mm)</label>
+            <input id="bearingID" name="bearingID" type="number" step="0.1" value="8">
+          </div>
+          <div class="form-group">
+            <label for="bearingOD">Outer Diameter / OD (mm)</label>
+            <input id="bearingOD" name="bearingOD" type="number" step="0.1" value="22">
+          </div>
+        </div>
+
+        <div class="form-group config-group" data-types="bearing">
+          <label for="bearingWidth">Width (mm)</label>
+          <input id="bearingWidth" name="bearingWidth" type="number" step="0.1" value="7">
         </div>
 
         <div class="row">

@@ -1,7 +1,9 @@
 import { getDefaultSizeForStandard, getFastenerData } from './fastener-data.js';
 import { renderScrewSVG } from './renderers/screwRenderer.js';
+import { renderSetScrewSVG } from './renderers/setScrewRenderer.js';
 import { renderNutSVG } from './renderers/nutRenderer.js';
 import { renderWasherSVG } from './renderers/washerRenderer.js';
+import { renderBearingSVG } from './renderers/bearingRenderer.js';
 
 const AVERY_TEMPLATES = {
   single: {
@@ -53,6 +55,8 @@ const labelQuantityInput = document.getElementById('labelQuantity');
 const sizeLabel = document.getElementById('sizeLabel');
 const lengthLabel = document.getElementById('lengthLabel');
 const pitchLabel = document.getElementById('pitchLabel');
+const setScrewLengthLabel = document.getElementById('setScrewLengthLabel');
+const setScrewPitchLabel = document.getElementById('setScrewPitchLabel');
 
 const sheetPreview = document.getElementById('sheetPreview');
 const sheetNotice = document.getElementById('sheetNotice');
@@ -85,10 +89,63 @@ const DRIVE_LABELS = {
 
 const END_TYPE_LABELS = {
   pointed: 'Pointed End',
-  flat: 'Flat End'
+  flat: 'Flat End',
+  cup: 'Cup Point',
+  cone: 'Cone Point',
+  dog: 'Dog Point'
 };
 
-function resolveDriveForHead(head, drive) {
+const BEARING_PRESETS = {
+  '608': { innerDiameter: 8, outerDiameter: 22, width: 7, seal: 'shielded' },
+  '625': { innerDiameter: 5, outerDiameter: 16, width: 5, seal: 'shielded' },
+  '626': { innerDiameter: 6, outerDiameter: 19, width: 6, seal: 'shielded' },
+  '627': { innerDiameter: 7, outerDiameter: 22, width: 7, seal: 'shielded' },
+  '6000': { innerDiameter: 10, outerDiameter: 26, width: 8, seal: 'sealed' },
+  '6001': { innerDiameter: 12, outerDiameter: 28, width: 8, seal: 'sealed' },
+  '6002': { innerDiameter: 15, outerDiameter: 32, width: 9, seal: 'sealed' },
+  '6003': { innerDiameter: 17, outerDiameter: 35, width: 10, seal: 'sealed' },
+  '6004': { innerDiameter: 20, outerDiameter: 42, width: 12, seal: 'sealed' },
+  '6200': { innerDiameter: 10, outerDiameter: 30, width: 9, seal: 'sealed' },
+  '6201': { innerDiameter: 12, outerDiameter: 32, width: 10, seal: 'sealed' },
+  '6202': { innerDiameter: 15, outerDiameter: 35, width: 11, seal: 'sealed' },
+  '6203': { innerDiameter: 17, outerDiameter: 40, width: 12, seal: 'sealed' },
+  R188: { innerDiameter: 6.35, outerDiameter: 12.7, width: 4.7625, seal: 'shielded' }
+};
+
+function applyBearingPreset(presetKey) {
+  if (!presetKey || presetKey === 'custom') {
+    return;
+  }
+
+  const preset = BEARING_PRESETS[presetKey];
+  if (!preset) {
+    return;
+  }
+
+  const bearingIdInput = document.getElementById('bearingID');
+  const bearingOdInput = document.getElementById('bearingOD');
+  const bearingWidthInput = document.getElementById('bearingWidth');
+  const bearingSealInput = document.getElementById('bearingSeal');
+
+  if (bearingIdInput) {
+    bearingIdInput.value = preset.innerDiameter;
+  }
+  if (bearingOdInput) {
+    bearingOdInput.value = preset.outerDiameter;
+  }
+  if (bearingWidthInput) {
+    bearingWidthInput.value = preset.width;
+  }
+  if (bearingSealInput) {
+    bearingSealInput.value = preset.seal || 'open';
+  }
+}
+
+function resolveDriveForHead(head, drive, isHeadless = false) {
+  if (isHeadless) {
+    return drive;
+  }
+
   return head === 'hex' || head === 'hexWasher'
     ? 'hex'
     : drive;
@@ -97,12 +154,17 @@ function resolveDriveForHead(head, drive) {
 function syncDriveWithHeadSelection() {
   const headSelect = document.getElementById('head');
   const driveSelect = document.getElementById('drive');
+  const headlessInput = document.getElementById('screwHeadless');
 
   if (!headSelect || !driveSelect) {
     return;
   }
 
-  const resolvedDrive = resolveDriveForHead(headSelect.value, driveSelect.value || 'phillips');
+  const resolvedDrive = resolveDriveForHead(
+    headSelect.value,
+    driveSelect.value || 'phillips',
+    Boolean(headlessInput?.checked)
+  );
   if (driveSelect.value !== resolvedDrive) {
     driveSelect.value = resolvedDrive;
   }
@@ -165,13 +227,23 @@ function populateSizeOptions() {
 function updateStandardLabels() {
   const standard = getValue('standard') || 'metric';
   const pitchInput = document.getElementById('pitch');
+  const setScrewPitchInput = document.getElementById('setScrewPitch');
 
   sizeLabel.textContent = standard === 'sae' ? 'SAE Size' : 'Metric Size';
   lengthLabel.textContent = standard === 'sae' ? 'Length (in)' : 'Length (mm)';
   pitchLabel.textContent = standard === 'sae' ? 'Threads Per Inch (TPI)' : 'Pitch (mm)';
+  if (setScrewLengthLabel) {
+    setScrewLengthLabel.textContent = standard === 'sae' ? 'Length (in)' : 'Length (mm)';
+  }
+  if (setScrewPitchLabel) {
+    setScrewPitchLabel.textContent = standard === 'sae' ? 'Threads Per Inch (TPI)' : 'Pitch (mm)';
+  }
 
   if (pitchInput) {
     pitchInput.step = standard === 'sae' ? '1' : '0.05';
+  }
+  if (setScrewPitchInput) {
+    setScrewPitchInput.step = standard === 'sae' ? '1' : '0.05';
   }
 }
 
@@ -182,29 +254,46 @@ function getCurrentPart() {
   const sizeData = getSizeData(standard, size);
   const nutDefaults = sizeData.nut;
   const washerDefaults = sizeData.washer;
+  const bearingDefaults = {
+    innerDiameter: Math.max(2, Number(sizeData.washer.innerDiameter) || 4),
+    outerDiameter: Math.max(4, (Number(sizeData.washer.outerDiameter) || 9) * 1.8),
+    width: Math.max(2, ((Number(sizeData.washer.outerDiameter) || 9) - (Number(sizeData.washer.innerDiameter) || 4)) * 0.45)
+  };
+  const isSetScrew = type === 'setScrew';
   const threadInput = Number(getValue('pitch'))
+    || (standard === 'sae' ? (sizeData.threadPerInch || Math.round(25.4 / sizeData.coarsePitch)) : sizeData.coarsePitch);
+  const setScrewThreadInput = Number(getValue('setScrewPitch'))
     || (standard === 'sae' ? (sizeData.threadPerInch || Math.round(25.4 / sizeData.coarsePitch)) : sizeData.coarsePitch);
 
   const pitch = standard === 'sae'
-    ? 25.4 / Math.max(threadInput, 1)
-    : threadInput;
+    ? 25.4 / Math.max(isSetScrew ? setScrewThreadInput : threadInput, 1)
+    : (isSetScrew ? setScrewThreadInput : threadInput);
 
   const lengthInput = Number(getValue('length')) || (standard === 'sae' ? 0.5 : 12);
+  const setScrewLengthInput = Number(getValue('setScrewLength')) || (standard === 'sae' ? 0.25 : 8);
   const lengthMm = standard === 'sae' ? inchesToMm(lengthInput) : lengthInput;
+  const setScrewLengthMm = standard === 'sae' ? inchesToMm(setScrewLengthInput) : setScrewLengthInput;
+  const isScrewHeadless = getChecked('screwHeadless');
+
+  const head = getValue('head') || 'pan';
+  const screwDrive = resolveDriveForHead(head, getValue('drive') || 'phillips', isScrewHeadless);
+  const setScrewDrive = getValue('setScrewDrive') || 'hex';
+  const setScrewPoint = getValue('setScrewPoint') || 'cup';
 
   return {
     standard,
     type,
     size,
     diameter: sizeData.diameter,
-    length: lengthMm,
-    lengthDisplay: lengthInput,
+    length: isSetScrew ? setScrewLengthMm : lengthMm,
+    lengthDisplay: isSetScrew ? setScrewLengthInput : lengthInput,
     lengthUnit: standard === 'sae' ? 'in' : 'mm',
     pitch,
-    threadValue: threadInput,
-    head: getValue('head') || 'pan',
-    drive: resolveDriveForHead(getValue('head') || 'pan', getValue('drive') || 'phillips'),
-    endType: getValue('endType') || 'pointed',
+    threadValue: isSetScrew ? setScrewThreadInput : threadInput,
+    head,
+    drive: isSetScrew ? setScrewDrive : screwDrive,
+    endType: isSetScrew ? setScrewPoint : (getValue('endType') || 'pointed'),
+    isHeadless: isScrewHeadless,
     material: getValue('material'),
     finish: getValue('finish'),
     location: getValue('location'),
@@ -216,7 +305,12 @@ function getCurrentPart() {
     nutThickness: Number(getValue('nutThickness')) || nutDefaults.thickness,
     innerDiameter: Number(getValue('washerID')) || washerDefaults.innerDiameter,
     outerDiameter: Number(getValue('washerOD')) || washerDefaults.outerDiameter,
-    washerThickness: Number(getValue('washerThickness')) || washerDefaults.thickness
+    washerThickness: Number(getValue('washerThickness')) || washerDefaults.thickness,
+    bearingInnerDiameter: Number(getValue('bearingID')) || bearingDefaults.innerDiameter,
+    bearingOuterDiameter: Number(getValue('bearingOD')) || bearingDefaults.outerDiameter,
+    bearingWidth: Number(getValue('bearingWidth')) || bearingDefaults.width,
+    bearingSeal: getValue('bearingSeal') || 'open',
+    bearingPreset: getValue('bearingPreset') || 'custom'
   };
 }
 
@@ -235,10 +329,14 @@ function applyPartToForm(part) {
   setField('type', part.type || 'screw');
   setField('size', part.size || getDefaultSizeForStandard(standardSelect.value));
   setField('length', part.lengthDisplay || 12);
+  setField('setScrewLength', part.lengthDisplay || 8);
   setField('pitch', part.standard === 'sae' ? (part.threadValue || 20) : (part.pitch || 0.7));
+  setField('setScrewPitch', part.standard === 'sae' ? (part.threadValue || 20) : (part.pitch || 0.7));
   setField('head', part.head || 'pan');
-  setField('drive', resolveDriveForHead(part.head || 'pan', part.drive || 'phillips'));
+  setField('drive', resolveDriveForHead(part.head || 'pan', part.drive || 'phillips', Boolean(part.isHeadless)));
+  setField('setScrewDrive', part.drive || 'hex');
   setField('endType', part.endType || 'pointed');
+  setField('setScrewPoint', part.endType || 'cup');
   setField('material', part.material || '');
   setField('finish', part.finish || '');
   setField('location', part.location || '');
@@ -249,11 +347,20 @@ function applyPartToForm(part) {
   if (nutLockInput) {
     nutLockInput.checked = Boolean(part.isLockNut);
   }
+  const screwHeadlessInput = document.getElementById('screwHeadless');
+  if (screwHeadlessInput) {
+    screwHeadlessInput.checked = Boolean(part.isHeadless);
+  }
   setField('nutWidthAcrossFlats', part.widthAcrossFlats);
   setField('nutThickness', part.nutThickness);
   setField('washerID', part.innerDiameter);
   setField('washerOD', part.outerDiameter);
   setField('washerThickness', part.washerThickness);
+  setField('bearingID', part.bearingInnerDiameter);
+  setField('bearingOD', part.bearingOuterDiameter);
+  setField('bearingWidth', part.bearingWidth);
+  setField('bearingSeal', part.bearingSeal || 'open');
+  setField('bearingPreset', part.bearingPreset || 'custom');
 
   updateFormOptions();
   syncDriveWithHeadSelection();
@@ -310,8 +417,19 @@ function syncTypeSpecificDefaults({ resetLength = false } = {}) {
   }
 
   const lengthInput = document.getElementById('length');
+  const setScrewLengthInput = document.getElementById('setScrewLength');
   if (lengthInput && resetLength) {
     lengthInput.value = standard === 'sae' ? 0.5 : 12;
+  }
+  if (setScrewLengthInput && resetLength) {
+    setScrewLengthInput.value = standard === 'sae' ? 0.25 : 8;
+  }
+
+  const setScrewPitchInput = document.getElementById('setScrewPitch');
+  if (setScrewPitchInput) {
+    setScrewPitchInput.value = standard === 'sae'
+      ? (sizeData.threadPerInch || Math.round(25.4 / sizeData.coarsePitch))
+      : sizeData.coarsePitch;
   }
 
   const nutWidthInput = document.getElementById('nutWidthAcrossFlats');
@@ -335,6 +453,28 @@ function syncTypeSpecificDefaults({ resetLength = false } = {}) {
   if (washerThicknessInput) {
     washerThicknessInput.value = sizeData.washer.thickness;
   }
+
+  const bearingIdInput = document.getElementById('bearingID');
+  const bearingOdInput = document.getElementById('bearingOD');
+  const bearingWidthInput = document.getElementById('bearingWidth');
+  const bearingPresetSelect = document.getElementById('bearingPreset');
+  const selectedType = getValue('type') || 'screw';
+  const selectedBearingPreset = bearingPresetSelect?.value || 'custom';
+
+  if (selectedType === 'bearing' && selectedBearingPreset !== 'custom') {
+    applyBearingPreset(selectedBearingPreset);
+    return;
+  }
+
+  if (bearingIdInput) {
+    bearingIdInput.value = Math.max(2, Number(sizeData.washer.innerDiameter) || 4);
+  }
+  if (bearingOdInput) {
+    bearingOdInput.value = Math.max(4, (Number(sizeData.washer.outerDiameter) || 9) * 1.8);
+  }
+  if (bearingWidthInput) {
+    bearingWidthInput.value = Math.max(2, ((Number(sizeData.washer.outerDiameter) || 9) - (Number(sizeData.washer.innerDiameter) || 4)) * 0.45);
+  }
 }
 
 function updateFormOptions() {
@@ -353,16 +493,50 @@ function updateFormOptions() {
       control.disabled = !visible;
     });
   });
+
+  const screwHeadlessInput = document.getElementById('screwHeadless');
+  const headSelect = document.getElementById('head');
+  const driveSelect = document.getElementById('drive');
+  const headGroup = headSelect?.closest('.form-group');
+  const driveGroup = driveSelect?.closest('.form-group');
+  const shouldHideHeadType = selectedType === 'screw' && Boolean(screwHeadlessInput?.checked);
+
+  if (headGroup) {
+    headGroup.classList.toggle('is-hidden', shouldHideHeadType);
+  }
+  if (driveGroup) {
+    driveGroup.classList.toggle('is-hidden', shouldHideHeadType);
+  }
+
+  if (headSelect && selectedType === 'screw') {
+    headSelect.disabled = shouldHideHeadType;
+  }
+  if (driveSelect && selectedType === 'screw') {
+    driveSelect.disabled = shouldHideHeadType;
+  }
+
+  const sizeGroup = sizeSelect?.closest('.form-group');
+  const hideSizeForBearing = selectedType === 'bearing';
+  if (sizeGroup) {
+    sizeGroup.classList.toggle('is-hidden', hideSizeForBearing);
+  }
+  if (sizeSelect) {
+    sizeSelect.disabled = hideSizeForBearing;
+  }
 }
 
 function renderFastenerSVG(part) {
   switch (part.type) {
     case 'screw':
       return renderScrewSVG(part, 'side');
+    case 'setScrew':
+      return renderSetScrewSVG(part, 'side');
     case 'nut':
       return renderNutSVG(part, 'top');
     case 'washer':
       return renderWasherSVG(part, 'top');
+    case 'bearing':
+      return renderBearingSVG(part, 'top');
     default:
       return renderScrewSVG(part, 'side');
   }
@@ -371,19 +545,32 @@ function renderFastenerSVG(part) {
 function renderFastenerViews(part) {
   switch (part.type) {
     case 'screw':
-      return [renderScrewSVG(part, 'side'), renderScrewSVG(part, 'top')];
+      return part.isHeadless
+        ? [renderScrewSVG(part, 'side')]
+        : [renderScrewSVG(part, 'side'), renderScrewSVG(part, 'top')];
+    case 'setScrew':
+      return [renderSetScrewSVG(part, 'side'), renderSetScrewSVG(part, 'top')];
     case 'nut':
       return [renderNutSVG(part, 'top')];
     case 'washer':
       return [renderWasherSVG(part, 'top')];
+    case 'bearing':
+      return [renderBearingSVG(part, 'top')];
     default:
       return [renderScrewSVG(part, 'side'), renderScrewSVG(part, 'top')];
   }
 }
 
 function renderTitle(part) {
-  if (part.type === 'screw') {
+  if (part.type === 'screw' || part.type === 'setScrew') {
     return `${part.size} × ${formatNumber(part.lengthDisplay, 2)}${part.lengthUnit}`;
+  }
+
+  if (part.type === 'bearing') {
+    const preset = part.bearingPreset && part.bearingPreset !== 'custom'
+      ? String(part.bearingPreset)
+      : '';
+    return preset ? `${preset} Bearing` : 'Bearing';
   }
 
   const standardLabel = part.standard === 'sae' ? 'SAE' : 'Metric';
@@ -392,14 +579,32 @@ function renderTitle(part) {
 
 function renderSubtitle(part) {
   if (part.type === 'screw') {
-    const head = HEAD_LABELS[part.head] || 'Head';
+    const head = part.isHeadless ? 'Headless' : (HEAD_LABELS[part.head] || 'Head');
     const drive = DRIVE_LABELS[part.drive] || 'Drive';
     const endType = END_TYPE_LABELS[part.endType] || 'Pointed End';
-    return `${head} • ${drive} • ${endType}`;
+    return part.isHeadless
+      ? `${head} • ${endType}`
+      : `${head} • ${drive} • ${endType}`;
+  }
+
+  if (part.type === 'setScrew') {
+    const drive = DRIVE_LABELS[part.drive] || 'Drive';
+    const pointStyle = END_TYPE_LABELS[part.endType] || 'Cup Point';
+    return `Set Screw • ${drive} • ${pointStyle}`;
   }
 
   if (part.type === 'nut') {
     return part.isLockNut ? 'Hex Lock Nut' : 'Hex Nut';
+  }
+
+  if (part.type === 'bearing') {
+    if (part.bearingSeal === 'sealed') {
+      return 'Ball Bearing • Sealed (2RS)';
+    }
+    if (part.bearingSeal === 'shielded') {
+      return 'Ball Bearing • Shielded (ZZ)';
+    }
+    return 'Ball Bearing • Open';
   }
 
   return 'Flat Washer';
@@ -423,6 +628,13 @@ function buildMetaLines(part) {
     detailLine = `${part.innerDiameter}mm ID • ${part.outerDiameter}mm OD • ${part.washerThickness}mm thick`;
     if (part.standard === 'sae') {
       detailLine = `${formatNumber(mmToInches(part.innerDiameter), 3)}in ID • ${formatNumber(mmToInches(part.outerDiameter), 3)}in OD • ${formatNumber(mmToInches(part.washerThickness), 3)}in thick`;
+    }
+  }
+
+  if (part.type === 'bearing') {
+    detailLine = `${part.bearingInnerDiameter}mm ID • ${part.bearingOuterDiameter}mm OD • ${part.bearingWidth}mm W`;
+    if (part.standard === 'sae') {
+      detailLine = `${formatNumber(mmToInches(part.bearingInnerDiameter), 3)}in ID • ${formatNumber(mmToInches(part.bearingOuterDiameter), 3)}in OD • ${formatNumber(mmToInches(part.bearingWidth), 3)}in W`;
     }
   }
 
@@ -574,8 +786,19 @@ form.addEventListener('change', (event) => {
     return;
   }
 
-  if (event.target.id === 'head') {
+  if (event.target.id === 'head' || event.target.id === 'screwHeadless') {
     syncDriveWithHeadSelection();
+  }
+
+  if (event.target.id === 'bearingPreset') {
+    applyBearingPreset(event.target.value);
+  }
+
+  if (event.target.id === 'bearingID' || event.target.id === 'bearingOD' || event.target.id === 'bearingWidth') {
+    const bearingPresetSelect = document.getElementById('bearingPreset');
+    if (bearingPresetSelect) {
+      bearingPresetSelect.value = 'custom';
+    }
   }
 
   storeActiveLabel();
