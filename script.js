@@ -88,6 +88,26 @@ const END_TYPE_LABELS = {
   flat: 'Flat End'
 };
 
+function resolveDriveForHead(head, drive) {
+  return head === 'hex' || head === 'hexWasher'
+    ? 'hex'
+    : drive;
+}
+
+function syncDriveWithHeadSelection() {
+  const headSelect = document.getElementById('head');
+  const driveSelect = document.getElementById('drive');
+
+  if (!headSelect || !driveSelect) {
+    return;
+  }
+
+  const resolvedDrive = resolveDriveForHead(headSelect.value, driveSelect.value || 'phillips');
+  if (driveSelect.value !== resolvedDrive) {
+    driveSelect.value = resolvedDrive;
+  }
+}
+
 function formatNumber(value, decimals = 2) {
   return Number(value).toFixed(decimals).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
 }
@@ -183,7 +203,7 @@ function getCurrentPart() {
     pitch,
     threadValue: threadInput,
     head: getValue('head') || 'pan',
-    drive: getValue('drive') || 'phillips',
+    drive: resolveDriveForHead(getValue('head') || 'pan', getValue('drive') || 'phillips'),
     endType: getValue('endType') || 'pointed',
     material: getValue('material'),
     finish: getValue('finish'),
@@ -217,7 +237,7 @@ function applyPartToForm(part) {
   setField('length', part.lengthDisplay || 12);
   setField('pitch', part.standard === 'sae' ? (part.threadValue || 20) : (part.pitch || 0.7));
   setField('head', part.head || 'pan');
-  setField('drive', part.drive || 'phillips');
+  setField('drive', resolveDriveForHead(part.head || 'pan', part.drive || 'phillips'));
   setField('endType', part.endType || 'pointed');
   setField('material', part.material || '');
   setField('finish', part.finish || '');
@@ -236,6 +256,7 @@ function applyPartToForm(part) {
   setField('washerThickness', part.washerThickness);
 
   updateFormOptions();
+  syncDriveWithHeadSelection();
 }
 
 function storeActiveLabel() {
@@ -551,6 +572,10 @@ form.addEventListener('input', (event) => {
 form.addEventListener('change', (event) => {
   if (event.target.id === 'labelPicker') {
     return;
+  }
+
+  if (event.target.id === 'head') {
+    syncDriveWithHeadSelection();
   }
 
   storeActiveLabel();
