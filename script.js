@@ -41,6 +41,8 @@ const AVERY_TEMPLATES = {
 const form = document.getElementById('labelForm');
 const printBtn = document.getElementById('printBtn');
 const exportJsonBtn = document.getElementById('exportJsonBtn');
+const importJsonBtn = document.getElementById('importJsonBtn');
+const importJsonInput = document.getElementById('importJsonInput');
 const addLabelBtn = document.getElementById('addLabelBtn');
 const duplicateLabelBtn = document.getElementById('duplicateLabelBtn');
 const removeLabelBtn = document.getElementById('removeLabelBtn');
@@ -771,6 +773,44 @@ function exportCurrentConfig() {
   downloadTextFile(`${safeName}.json`, `${JSON.stringify(payload, null, 2)}\n`, 'application/json');
 }
 
+function importConfigFromPayload(payload) {
+  const labels = Array.isArray(payload?.labels) ? payload.labels : [];
+  if (!labels.length) {
+    throw new Error('Imported file does not contain any labels.');
+  }
+
+  const normalizedLabels = labels
+    .filter((label) => label && typeof label === 'object')
+    .map((label) => ({
+      ...label,
+      quantity: Math.max(1, Number(label.quantity) || 1)
+    }));
+
+  if (!normalizedLabels.length) {
+    throw new Error('Imported labels are not valid objects.');
+  }
+
+  const templateId = payload?.sheet?.template;
+  if (templateId && AVERY_TEMPLATES[templateId]) {
+    templateSelect.value = templateId;
+  }
+
+  labelConfigs = normalizedLabels;
+  const requestedIndex = Number(payload?.activeLabelIndex);
+  activeLabelIndex = Number.isInteger(requestedIndex)
+    ? Math.min(Math.max(0, requestedIndex), labelConfigs.length - 1)
+    : 0;
+
+  applyPartToForm(labelConfigs[activeLabelIndex]);
+  updatePreview();
+}
+
+async function importCurrentConfig(file) {
+  const text = await file.text();
+  const payload = JSON.parse(text);
+  importConfigFromPayload(payload);
+}
+
 form.addEventListener('input', (event) => {
   if (event.target.id === 'labelPicker') {
     return;
@@ -870,6 +910,23 @@ form.addEventListener('reset', () => {
 
 printBtn.addEventListener('click', () => window.print());
 exportJsonBtn.addEventListener('click', exportCurrentConfig);
+importJsonBtn.addEventListener('click', () => {
+  importJsonInput.click();
+});
+importJsonInput.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  try {
+    await importCurrentConfig(file);
+  } catch (error) {
+    alert(`Unable to import JSON: ${error.message || 'Invalid file format.'}`);
+  } finally {
+    importJsonInput.value = '';
+  }
+});
 
 populateSizeOptions();
 updateStandardLabels();
