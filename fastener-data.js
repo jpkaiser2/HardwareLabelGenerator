@@ -1,174 +1,89 @@
-// Metric fastener dimensions used by renderer modules.
-// Values are realistic approximations in millimeters.
-export const metricFastenerData = {
-  M2: {
-    diameter: 2,
-    coarsePitch: 0.4,
-    heads: {
-      pan: { headDiameter: 3.8, headHeight: 1.5 },
-      socketCap: { headDiameter: 3.8, headHeight: 2.0 },
-      flat: { headDiameter: 4.2, headHeight: 1.1 },
-      hex: { headDiameter: 4.0, headHeight: 1.4 }
-    },
-    nut: { widthAcrossFlats: 4.0, thickness: 1.6 },
-    washer: { innerDiameter: 2.2, outerDiameter: 5.0, thickness: 0.3 }
-  },
-  'M2.5': {
-    diameter: 2.5,
-    coarsePitch: 0.45,
-    heads: {
-      pan: { headDiameter: 4.7, headHeight: 1.8 },
-      socketCap: { headDiameter: 4.5, headHeight: 2.5 },
-      flat: { headDiameter: 5.0, headHeight: 1.4 },
-      hex: { headDiameter: 5.0, headHeight: 1.8 }
-    },
-    nut: { widthAcrossFlats: 5.0, thickness: 2.0 },
-    washer: { innerDiameter: 2.7, outerDiameter: 6.0, thickness: 0.5 }
-  },
-  M3: {
-    diameter: 3,
-    coarsePitch: 0.5,
-    heads: {
-      pan: { headDiameter: 5.6, headHeight: 2.4 },
-      socketCap: { headDiameter: 5.5, headHeight: 3.0 },
-      flat: { headDiameter: 6.0, headHeight: 1.7 },
-      hex: { headDiameter: 5.5, headHeight: 2.0 }
-    },
-    nut: { widthAcrossFlats: 5.5, thickness: 2.4 },
-    washer: { innerDiameter: 3.2, outerDiameter: 7.0, thickness: 0.5 }
-  },
-  M4: {
-    diameter: 4,
-    coarsePitch: 0.7,
-    heads: {
-      pan: { headDiameter: 7.8, headHeight: 3.1 },
-      socketCap: { headDiameter: 7.0, headHeight: 4.0 },
-      flat: { headDiameter: 8.2, headHeight: 2.3 },
-      hex: { headDiameter: 7.0, headHeight: 2.8 }
-    },
-    nut: { widthAcrossFlats: 7.0, thickness: 3.2 },
-    washer: { innerDiameter: 4.3, outerDiameter: 9.0, thickness: 0.8 }
-  },
-  M5: {
-    diameter: 5,
-    coarsePitch: 0.8,
-    heads: {
-      pan: { headDiameter: 9.5, headHeight: 3.8 },
-      socketCap: { headDiameter: 8.5, headHeight: 5.0 },
-      flat: { headDiameter: 10.0, headHeight: 2.8 },
-      hex: { headDiameter: 8.0, headHeight: 3.5 }
-    },
-    nut: { widthAcrossFlats: 8.0, thickness: 4.0 },
-    washer: { innerDiameter: 5.3, outerDiameter: 10.0, thickness: 1.0 }
-  },
-  M6: {
-    diameter: 6,
-    coarsePitch: 1.0,
-    heads: {
-      pan: { headDiameter: 11.0, headHeight: 4.6 },
-      socketCap: { headDiameter: 10.0, headHeight: 6.0 },
-      flat: { headDiameter: 12.0, headHeight: 3.3 },
-      hex: { headDiameter: 10.0, headHeight: 4.2 }
-    },
-    nut: { widthAcrossFlats: 10.0, thickness: 5.0 },
-    washer: { innerDiameter: 6.4, outerDiameter: 12.5, thickness: 1.6 }
-  },
-  M8: {
-    diameter: 8,
-    coarsePitch: 1.25,
-    heads: {
-      pan: { headDiameter: 14.0, headHeight: 6.0 },
-      socketCap: { headDiameter: 13.0, headHeight: 8.0 },
-      flat: { headDiameter: 16.0, headHeight: 4.4 },
-      hex: { headDiameter: 13.0, headHeight: 5.3 }
-    },
-    nut: { widthAcrossFlats: 13.0, thickness: 6.5 },
-    washer: { innerDiameter: 8.4, outerDiameter: 17.0, thickness: 1.6 }
-  }
-};
+function round(value, decimals = 3) {
+  return Number(value.toFixed(decimals));
+}
 
-// SAE/Unified sizes represented with realistic approximate dimensions.
-// Diameters and dimensions are stored in millimeters for renderer consistency.
-export const saeFastenerData = {
-  '#4-40': {
-    diameter: 2.84,
-    coarsePitch: 0.635,
-    threadPerInch: 40,
+function createFastenerSize(diameter, pitch, threadPerInch) {
+  const clearance = diameter < 6 ? 0.3 : 0.4;
+  const panHeadDiameter = diameter * 2 + 0.6;
+  const socketCapDiameter = diameter * 1.8 + 0.4;
+  const flatHeadDiameter = diameter * 2.1 + 1;
+  const hexHeadDiameter = diameter * 1.75;
+
+  const data = {
+    diameter: round(diameter),
+    coarsePitch: round(pitch),
     heads: {
-      pan: { headDiameter: 5.0, headHeight: 1.8 },
-      socketCap: { headDiameter: 4.8, headHeight: 2.5 },
-      flat: { headDiameter: 5.5, headHeight: 1.5 },
-      hex: { headDiameter: 4.8, headHeight: 1.9 }
+      pan: { headDiameter: round(panHeadDiameter), headHeight: round(diameter * 0.75 + 0.2) },
+      socketCap: { headDiameter: round(socketCapDiameter), headHeight: round(diameter * 1 + 0.4) },
+      flat: { headDiameter: round(flatHeadDiameter), headHeight: round(Math.max(1, diameter * 0.55)) },
+      hex: { headDiameter: round(hexHeadDiameter), headHeight: round(diameter * 0.8 + 0.2) }
     },
-    nut: { widthAcrossFlats: 6.35, thickness: 2.4 },
-    washer: { innerDiameter: 3.2, outerDiameter: 7.9, thickness: 0.8 }
-  },
-  '#6-32': {
-    diameter: 3.51,
-    coarsePitch: 0.7938,
-    threadPerInch: 32,
-    heads: {
-      pan: { headDiameter: 6.5, headHeight: 2.2 },
-      socketCap: { headDiameter: 6.0, headHeight: 3.2 },
-      flat: { headDiameter: 7.0, headHeight: 1.9 },
-      hex: { headDiameter: 5.6, headHeight: 2.3 }
+    nut: {
+      widthAcrossFlats: round(diameter * 1.7),
+      thickness: round(Math.max(1.2, diameter * 0.8))
     },
-    nut: { widthAcrossFlats: 7.94, thickness: 2.8 },
-    washer: { innerDiameter: 3.9, outerDiameter: 9.5, thickness: 0.8 }
-  },
-  '#8-32': {
-    diameter: 4.17,
-    coarsePitch: 0.7938,
-    threadPerInch: 32,
-    heads: {
-      pan: { headDiameter: 7.4, headHeight: 2.6 },
-      socketCap: { headDiameter: 7.0, headHeight: 4.0 },
-      flat: { headDiameter: 8.2, headHeight: 2.2 },
-      hex: { headDiameter: 6.35, headHeight: 2.7 }
-    },
-    nut: { widthAcrossFlats: 8.73, thickness: 3.2 },
-    washer: { innerDiameter: 4.5, outerDiameter: 10.7, thickness: 1.0 }
-  },
-  '#10-24': {
-    diameter: 4.83,
-    coarsePitch: 1.058,
-    threadPerInch: 24,
-    heads: {
-      pan: { headDiameter: 8.6, headHeight: 3.0 },
-      socketCap: { headDiameter: 8.0, headHeight: 4.8 },
-      flat: { headDiameter: 9.4, headHeight: 2.6 },
-      hex: { headDiameter: 7.94, headHeight: 3.1 }
-    },
-    nut: { widthAcrossFlats: 9.53, thickness: 4.0 },
-    washer: { innerDiameter: 5.3, outerDiameter: 12.7, thickness: 1.2 }
-  },
-  '1/4-20': {
-    diameter: 6.35,
-    coarsePitch: 1.27,
-    threadPerInch: 20,
-    heads: {
-      pan: { headDiameter: 11.4, headHeight: 4.2 },
-      socketCap: { headDiameter: 10.5, headHeight: 6.3 },
-      flat: { headDiameter: 12.5, headHeight: 3.4 },
-      hex: { headDiameter: 10.0, headHeight: 4.4 }
-    },
-    nut: { widthAcrossFlats: 11.11, thickness: 5.2 },
-    washer: { innerDiameter: 6.9, outerDiameter: 18.0, thickness: 1.6 }
-  },
-  '5/16-18': {
-    diameter: 7.94,
-    coarsePitch: 1.411,
-    threadPerInch: 18,
-    heads: {
-      pan: { headDiameter: 14.0, headHeight: 5.1 },
-      socketCap: { headDiameter: 13.0, headHeight: 7.8 },
-      flat: { headDiameter: 15.5, headHeight: 4.2 },
-      hex: { headDiameter: 13.0, headHeight: 5.4 }
-    },
-    nut: { widthAcrossFlats: 12.7, thickness: 6.4 },
-    washer: { innerDiameter: 8.7, outerDiameter: 22.0, thickness: 2.0 }
+    washer: {
+      innerDiameter: round(diameter + clearance),
+      outerDiameter: round(Math.max(diameter * 2.2, diameter + 4)),
+      thickness: round(Math.max(0.5, Math.min(2.5, diameter * 0.25)))
+    }
+  };
+
+  if (threadPerInch) {
+    data.threadPerInch = threadPerInch;
   }
-};
+
+  return data;
+}
+
+const metricThreadSeries = [
+  ['M2', 2, 0.4],
+  ['M2.5', 2.5, 0.45],
+  ['M3', 3, 0.5],
+  ['M4', 4, 0.7],
+  ['M5', 5, 0.8],
+  ['M6', 6, 1.0],
+  ['M8', 8, 1.25],
+  ['M3x0.5', 3, 0.5],
+  ['M4x0.7', 4, 0.7],
+  ['M5x0.8', 5, 0.8],
+  ['M6x1.0', 6, 1.0],
+  ['M7x1.0', 7, 1.0],
+  ['M8x1.0', 8, 1.0],
+  ['M8x1.25', 8, 1.25],
+  ['M10x1.0', 10, 1.0],
+  ['M10x1.25', 10, 1.25],
+  ['M10x1.5', 10, 1.5],
+  ['M12x1.25', 12, 1.25],
+  ['M12x1.5', 12, 1.5],
+  ['M12x1.75', 12, 1.75]
+];
+
+export const metricFastenerData = Object.fromEntries(
+  metricThreadSeries.map(([size, diameter, pitch]) => [size, createFastenerSize(diameter, pitch)])
+);
+
+const saeThreadSeries = [
+  ['6-40', 3.505, 40],
+  ['6-32', 3.505, 32],
+  ['8-32', 4.166, 32],
+  ['10-24', 4.826, 24],
+  ['10-32', 4.826, 32],
+  ['1/4-20', 6.35, 20],
+  ['1/4-28', 6.35, 28],
+  ['5/16-18', 7.938, 18],
+  ['5/16-24', 7.938, 24],
+  ['3/8-16', 9.525, 16],
+  ['3/8-24', 9.525, 24],
+  ['7/16-14', 11.112, 14],
+  ['7/16-20', 11.112, 20],
+  ['1/2-13', 12.7, 13],
+  ['1/2-20', 12.7, 20]
+];
+
+export const saeFastenerData = Object.fromEntries(
+  saeThreadSeries.map(([size, diameter, tpi]) => [size, createFastenerSize(diameter, 25.4 / tpi, tpi)])
+);
 
 export const fastenerDataByStandard = {
   metric: metricFastenerData,
@@ -181,8 +96,8 @@ export function getFastenerData(standard = 'metric') {
 
 export function getDefaultSizeForStandard(standard = 'metric') {
   const defaults = {
-    metric: 'M4',
-    sae: '#8-32'
+    metric: 'M6x1.0',
+    sae: '1/4-20'
   };
-  return defaults[standard] || 'M4';
+  return defaults[standard] || 'M6x1.0';
 }
