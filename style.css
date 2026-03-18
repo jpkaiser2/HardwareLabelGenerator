@@ -303,7 +303,10 @@ button {
   column-gap: var(--col-gap);
   row-gap: var(--row-gap);
   width: fit-content;
-  padding: 0.15in;
+  padding-top: var(--pad-top, 0.15in);
+  padding-right: var(--pad-right, 0.15in);
+  padding-bottom: var(--pad-bottom, 0.15in);
+  padding-left: var(--pad-left, 0.15in);
   background: #fff;
   border: 1px dashed #aaa;
 }
@@ -371,15 +374,14 @@ button {
 
   .label-sheet-grid {
     border: 0;
-    padding: 0;
     background: #fff;
   }
 
   .label {
-    border: 1px solid #000;
+    border: 0;
   }
 
   @page {
-    margin: 0.25in;
+    margin: 0;
   }
 }

@@ -41,6 +41,7 @@ The project is fully client-side (HTML/CSS/JavaScript), so it works well on GitH
 - Sheet previews:
   - Single label
   - Avery 5160
+  - Generic 30-up (1in × 2 5/8in)
   - Avery 5163
   - Multi-page overflow preview
 - Print-ready output

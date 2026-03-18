@@ -26,6 +26,20 @@ const AVERY_TEMPLATES = {
     colGap: 0.125,
     rowGap: 0
   },
+  generic30: {
+    id: 'generic30',
+    label: 'Generic 30-Up (1in × 2 5/8in)',
+    columns: 3,
+    rows: 10,
+    labelWidth: 2.625,
+    labelHeight: 1,
+    colGap: mmToInches(3),
+    rowGap: 0,
+    padTop: mmToInches(16),
+    padRight: mmToInches(7),
+    padLeft: 8.5 - ((2.625 * 3) + (mmToInches(3) * 2) + mmToInches(7)),
+    padBottom: 11 - mmToInches(16) - (1 * 10)
+  },
   '5163': {
     id: '5163',
     label: 'Avery 5163',
@@ -786,6 +800,10 @@ function updatePreview() {
   storeActiveLabel();
   const { template, totalLabelCount, capacity, pageCount } = getSheetSettings();
   const compact = template.labelHeight <= 1.2;
+  const padTop = template.padTop ?? 0.15;
+  const padRight = template.padRight ?? 0.15;
+  const padBottom = template.padBottom ?? 0.15;
+  const padLeft = template.padLeft ?? 0.15;
 
   printBtn.textContent = totalLabelCount > 1 ? 'Print Labels' : 'Print Label';
 
@@ -808,7 +826,7 @@ function updatePreview() {
         <div class="sheet-page-title no-print">Page ${pageIndex + 1} of ${pageCount}</div>
         <div
           class="label-sheet-grid"
-          style="--cols:${template.columns}; --label-width:${template.labelWidth}in; --label-height:${template.labelHeight}in; --col-gap:${template.colGap}in; --row-gap:${template.rowGap}in;"
+          style="--cols:${template.columns}; --label-width:${template.labelWidth}in; --label-height:${template.labelHeight}in; --col-gap:${template.colGap}in; --row-gap:${template.rowGap}in; --pad-top:${padTop}in; --pad-right:${padRight}in; --pad-bottom:${padBottom}in; --pad-left:${padLeft}in;"
           data-template="${template.id}"
         >
           ${labelsMarkup}
