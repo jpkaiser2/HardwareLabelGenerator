@@ -97,6 +97,13 @@ const END_TYPE_LABELS = {
   dog: 'Dog Point'
 };
 
+const NUT_STYLE_LABELS = {
+  hex: 'Hex Nut',
+  lock: 'Hex Lock Nut',
+  wing: 'Wing Nut',
+  keps: 'Keps Nut'
+};
+
 const BEARING_PRESETS = {
   '608': { innerDiameter: 8, outerDiameter: 22, width: 7, seal: 'shielded' },
   '625': { innerDiameter: 5, outerDiameter: 16, width: 5, seal: 'shielded' },
@@ -151,6 +158,62 @@ function resolveDriveForHead(head, drive, isHeadless = false) {
   return head === 'hex' || head === 'hexWasher'
     ? 'hex'
     : drive;
+}
+
+function normalizeNutStyle(style, isLockNut = false) {
+  if (style && NUT_STYLE_LABELS[style]) {
+    return style;
+  }
+
+  return isLockNut ? 'lock' : 'hex';
+}
+
+function normalizePart(part) {
+  if (!part || typeof part !== 'object') {
+    return part;
+  }
+
+  if (part.type !== 'nut') {
+    return part;
+  }
+
+  const nutStyle = normalizeNutStyle(part.nutStyle, Boolean(part.isLockNut));
+  return {
+    ...part,
+    nutStyle,
+    isLockNut: nutStyle === 'lock'
+  };
+}
+
+function getNutStyleDefaults(baseNut, nutStyle) {
+  const style = normalizeNutStyle(nutStyle);
+  const widthAcrossFlats = Number(baseNut?.widthAcrossFlats) || 7;
+  const thickness = Number(baseNut?.thickness) || 3.2;
+  const roundDimension = (value) => Number(value.toFixed(2));
+
+  switch (style) {
+    case 'lock':
+      return {
+        widthAcrossFlats: roundDimension(widthAcrossFlats),
+        thickness: roundDimension(thickness * 1.15)
+      };
+    case 'wing':
+      return {
+        widthAcrossFlats: roundDimension(widthAcrossFlats * 2.2),
+        thickness: roundDimension(thickness * 0.9)
+      };
+    case 'keps':
+      return {
+        widthAcrossFlats: roundDimension(widthAcrossFlats * 1.9),
+        thickness: roundDimension(thickness * 1.05)
+      };
+    case 'hex':
+    default:
+      return {
+        widthAcrossFlats: roundDimension(widthAcrossFlats),
+        thickness: roundDimension(thickness)
+      };
+  }
 }
 
 function syncDriveWithHeadSelection() {
@@ -255,6 +318,8 @@ function getCurrentPart() {
   const size = getValue('size') || getDefaultSizeForStandard(standard);
   const sizeData = getSizeData(standard, size);
   const nutDefaults = sizeData.nut;
+  const nutStyle = normalizeNutStyle(getValue('nutStyle'));
+  const nutStyleDefaults = getNutStyleDefaults(nutDefaults, nutStyle);
   const washerDefaults = sizeData.washer;
   const bearingDefaults = {
     innerDiameter: Math.max(2, Number(sizeData.washer.innerDiameter) || 4),
@@ -282,7 +347,7 @@ function getCurrentPart() {
   const setScrewDrive = getValue('setScrewDrive') || 'hex';
   const setScrewPoint = getValue('setScrewPoint') || 'cup';
 
-  return {
+  return normalizePart({
     standard,
     type,
     size,
@@ -302,9 +367,10 @@ function getCurrentPart() {
     vendor: getValue('vendor'),
     sku: getValue('sku'),
     quantity: Math.max(1, Number(getValue('labelQuantity')) || 1),
-    isLockNut: getChecked('nutLock'),
-    widthAcrossFlats: Number(getValue('nutWidthAcrossFlats')) || nutDefaults.widthAcrossFlats,
-    nutThickness: Number(getValue('nutThickness')) || nutDefaults.thickness,
+    isLockNut: nutStyle === 'lock',
+    nutStyle,
+    widthAcrossFlats: Number(getValue('nutWidthAcrossFlats')) || nutStyleDefaults.widthAcrossFlats,
+    nutThickness: Number(getValue('nutThickness')) || nutStyleDefaults.thickness,
     innerDiameter: Number(getValue('washerID')) || washerDefaults.innerDiameter,
     outerDiameter: Number(getValue('washerOD')) || washerDefaults.outerDiameter,
     washerThickness: Number(getValue('washerThickness')) || washerDefaults.thickness,
@@ -313,10 +379,12 @@ function getCurrentPart() {
     bearingWidth: Number(getValue('bearingWidth')) || bearingDefaults.width,
     bearingSeal: getValue('bearingSeal') || 'open',
     bearingPreset: getValue('bearingPreset') || 'custom'
-  };
+  });
 }
 
 function applyPartToForm(part) {
+  const normalizedPart = normalizePart(part);
+
   standardSelect.value = part.standard || 'metric';
   populateSizeOptions();
   updateStandardLabels();
@@ -328,41 +396,38 @@ function applyPartToForm(part) {
     }
   };
 
-  setField('type', part.type || 'screw');
-  setField('size', part.size || getDefaultSizeForStandard(standardSelect.value));
-  setField('length', part.lengthDisplay || 12);
-  setField('setScrewLength', part.lengthDisplay || 8);
-  setField('pitch', part.standard === 'sae' ? (part.threadValue || 20) : (part.pitch || 0.7));
-  setField('setScrewPitch', part.standard === 'sae' ? (part.threadValue || 20) : (part.pitch || 0.7));
-  setField('head', part.head || 'pan');
-  setField('drive', resolveDriveForHead(part.head || 'pan', part.drive || 'phillips', Boolean(part.isHeadless)));
-  setField('setScrewDrive', part.drive || 'hex');
-  setField('endType', part.endType || 'pointed');
-  setField('setScrewPoint', part.endType || 'cup');
-  setField('material', part.material || '');
-  setField('finish', part.finish || '');
-  setField('location', part.location || '');
-  setField('vendor', part.vendor || '');
-  setField('sku', part.sku || '');
-  setField('labelQuantity', part.quantity || 1);
-  const nutLockInput = document.getElementById('nutLock');
-  if (nutLockInput) {
-    nutLockInput.checked = Boolean(part.isLockNut);
-  }
+  setField('type', normalizedPart.type || 'screw');
+  setField('size', normalizedPart.size || getDefaultSizeForStandard(standardSelect.value));
+  setField('length', normalizedPart.lengthDisplay || 12);
+  setField('setScrewLength', normalizedPart.lengthDisplay || 8);
+  setField('pitch', normalizedPart.standard === 'sae' ? (normalizedPart.threadValue || 20) : (normalizedPart.pitch || 0.7));
+  setField('setScrewPitch', normalizedPart.standard === 'sae' ? (normalizedPart.threadValue || 20) : (normalizedPart.pitch || 0.7));
+  setField('head', normalizedPart.head || 'pan');
+  setField('drive', resolveDriveForHead(normalizedPart.head || 'pan', normalizedPart.drive || 'phillips', Boolean(normalizedPart.isHeadless)));
+  setField('setScrewDrive', normalizedPart.drive || 'hex');
+  setField('endType', normalizedPart.endType || 'pointed');
+  setField('setScrewPoint', normalizedPart.endType || 'cup');
+  setField('material', normalizedPart.material || '');
+  setField('finish', normalizedPart.finish || '');
+  setField('location', normalizedPart.location || '');
+  setField('vendor', normalizedPart.vendor || '');
+  setField('sku', normalizedPart.sku || '');
+  setField('labelQuantity', normalizedPart.quantity || 1);
+  setField('nutStyle', normalizeNutStyle(normalizedPart.nutStyle, Boolean(normalizedPart.isLockNut)));
   const screwHeadlessInput = document.getElementById('screwHeadless');
   if (screwHeadlessInput) {
-    screwHeadlessInput.checked = Boolean(part.isHeadless);
+    screwHeadlessInput.checked = Boolean(normalizedPart.isHeadless);
   }
-  setField('nutWidthAcrossFlats', part.widthAcrossFlats);
-  setField('nutThickness', part.nutThickness);
-  setField('washerID', part.innerDiameter);
-  setField('washerOD', part.outerDiameter);
-  setField('washerThickness', part.washerThickness);
-  setField('bearingID', part.bearingInnerDiameter);
-  setField('bearingOD', part.bearingOuterDiameter);
-  setField('bearingWidth', part.bearingWidth);
-  setField('bearingSeal', part.bearingSeal || 'open');
-  setField('bearingPreset', part.bearingPreset || 'custom');
+  setField('nutWidthAcrossFlats', normalizedPart.widthAcrossFlats);
+  setField('nutThickness', normalizedPart.nutThickness);
+  setField('washerID', normalizedPart.innerDiameter);
+  setField('washerOD', normalizedPart.outerDiameter);
+  setField('washerThickness', normalizedPart.washerThickness);
+  setField('bearingID', normalizedPart.bearingInnerDiameter);
+  setField('bearingOD', normalizedPart.bearingOuterDiameter);
+  setField('bearingWidth', normalizedPart.bearingWidth);
+  setField('bearingSeal', normalizedPart.bearingSeal || 'open');
+  setField('bearingPreset', normalizedPart.bearingPreset || 'custom');
 
   updateFormOptions();
   syncDriveWithHeadSelection();
@@ -436,11 +501,13 @@ function syncTypeSpecificDefaults({ resetLength = false } = {}) {
 
   const nutWidthInput = document.getElementById('nutWidthAcrossFlats');
   const nutThicknessInput = document.getElementById('nutThickness');
+  const nutStyle = normalizeNutStyle(getValue('nutStyle'));
+  const nutStyleDefaults = getNutStyleDefaults(sizeData.nut, nutStyle);
   if (nutWidthInput) {
-    nutWidthInput.value = sizeData.nut.widthAcrossFlats;
+    nutWidthInput.value = nutStyleDefaults.widthAcrossFlats;
   }
   if (nutThicknessInput) {
-    nutThicknessInput.value = sizeData.nut.thickness;
+    nutThicknessInput.value = nutStyleDefaults.thickness;
   }
 
   const washerIdInput = document.getElementById('washerID');
@@ -575,6 +642,12 @@ function renderTitle(part) {
     return preset ? `${preset} Bearing` : 'Bearing';
   }
 
+  if (part.type === 'nut') {
+    const standardLabel = part.standard === 'sae' ? 'SAE' : 'Metric';
+    const nutStyleLabel = NUT_STYLE_LABELS[normalizeNutStyle(part.nutStyle, Boolean(part.isLockNut))] || NUT_STYLE_LABELS.hex;
+    return `${standardLabel} ${part.size} ${nutStyleLabel}`;
+  }
+
   const standardLabel = part.standard === 'sae' ? 'SAE' : 'Metric';
   return `${standardLabel} ${part.size} ${part.type.charAt(0).toUpperCase()}${part.type.slice(1)}`;
 }
@@ -596,7 +669,7 @@ function renderSubtitle(part) {
   }
 
   if (part.type === 'nut') {
-    return part.isLockNut ? 'Hex Lock Nut' : 'Hex Nut';
+    return NUT_STYLE_LABELS[normalizeNutStyle(part.nutStyle, Boolean(part.isLockNut))] || NUT_STYLE_LABELS.hex;
   }
 
   if (part.type === 'bearing') {
@@ -620,7 +693,7 @@ function buildMetaLines(part) {
   }
 
   if (part.type === 'nut') {
-    detailLine = `${part.widthAcrossFlats}mm A/F • ${part.nutThickness}mm thick`;
+    detailLine = `${formatNumber(part.widthAcrossFlats, 2)}mm A/F • ${formatNumber(part.nutThickness, 2)}mm thick`;
     if (part.standard === 'sae') {
       detailLine = `${formatNumber(mmToInches(part.widthAcrossFlats), 3)}in A/F • ${formatNumber(mmToInches(part.nutThickness), 3)}in thick`;
     }
@@ -642,8 +715,17 @@ function buildMetaLines(part) {
 
   const metaLines = [detailLine];
 
-  if (part.type === 'nut' && part.isLockNut) {
-    metaLines.push('Locking insert');
+  if (part.type === 'nut') {
+    const nutStyle = normalizeNutStyle(part.nutStyle, Boolean(part.isLockNut));
+    if (nutStyle === 'lock') {
+      metaLines.push('Locking insert');
+    }
+    if (nutStyle === 'wing') {
+      metaLines.push('Hand-tightened wing tabs');
+    }
+    if (nutStyle === 'keps') {
+      metaLines.push('Captive external-tooth washer');
+    }
   }
 
   if (part.material || part.finish) {
@@ -782,7 +864,7 @@ function importConfigFromPayload(payload) {
   const normalizedLabels = labels
     .filter((label) => label && typeof label === 'object')
     .map((label) => ({
-      ...label,
+      ...normalizePart(label),
       quantity: Math.max(1, Number(label.quantity) || 1)
     }));
 
@@ -850,6 +932,10 @@ form.addEventListener('change', (event) => {
   }
 
   if (event.target.id === 'size') {
+    syncTypeSpecificDefaults();
+  }
+
+  if (event.target.id === 'nutStyle') {
     syncTypeSpecificDefaults();
   }
 

@@ -181,10 +181,13 @@
         </div>
 
         <div class="form-group config-group" data-types="nut">
-          <label class="check-label" for="nutLock">
-            <input id="nutLock" name="nutLock" type="checkbox">
-            Lock Nut
-          </label>
+          <label for="nutStyle">Nut Style</label>
+          <select id="nutStyle" name="nutStyle">
+            <option value="hex" selected>Hex Nut</option>
+            <option value="lock">Hex Lock Nut</option>
+            <option value="wing">Wing Nut</option>
+            <option value="keps">Keps Nut</option>
+          </select>
         </div>
 
         <div class="row config-group" data-types="washer">

@@ -24,7 +24,11 @@ The project is fully client-side (HTML/CSS/JavaScript), so it works well on GitH
   - Drive type
   - Point style
   - Length and pitch/TPI
-- Nut controls including lock nut option
+- Nut controls with style options:
+  - Hex
+  - Hex lock
+  - Wing
+  - Keps
 - Washer controls with ID/OD/thickness
 - Bearing controls with:
   - Preset sizes (e.g. 608, 6203)
